@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"coursera/hw7_microservice/acl"
 	"fmt"
 	"io"
 	"log"
@@ -14,6 +15,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -33,16 +35,16 @@ const (
 }`
 )
 
-// чтобы не было сюрпризов когда где-то не успела преключиться горутина и не успело что-то стортовать
+// чтобы не было сюрпризов когда где-то не успела преключиться горутина и не успело что-то стартовать
 func wait(amout int) {
 	time.Sleep(time.Duration(amout) * 10 * time.Millisecond)
 }
 
 // утилитарная функция для коннекта к серверу
 func getGrpcConn(t *testing.T) *grpc.ClientConn {
-	grcpConn, err := grpc.Dial(
+	grcpConn, err := grpc.NewClient(
 		listenAddr,
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
 		t.Fatalf("cant connect to grpc: %v", err)
@@ -67,6 +69,31 @@ func getConsumerCtxWithCancel(consumerName string) (context.Context, context.Can
 		"consumer", consumerName,
 	)
 	return metadata.NewOutgoingContext(ctx, md), cancelFn
+}
+
+func TestBuildACLS(t *testing.T) {
+	acls, _ := acl.BuildACL(ACLData)
+	var (
+		authResult bool
+		err        error
+	)
+	// success authentication
+	authResult, err = acls.Authenticate("logger1", "/main.Admin/Logging")
+	if err != nil || !authResult {
+		t.Fatalf("failed authenticate")
+	}
+	// failed auth by not-allowed path
+	authResult, err = acls.Authenticate("logger1", "/main.User/Logging")
+	if err == nil && authResult {
+		t.Fatalf("failed authenticate")
+	}
+	// failed auth by unknown user [ sid ]
+	authResult, err = acls.Authenticate("necdmls-21", "/main.User/Logging")
+	fmt.Println("auth:", authResult, "err;", err)
+	if err == nil && authResult {
+		t.Fatalf("failed authenticate")
+	}
+
 }
 
 // старт-стоп сервера

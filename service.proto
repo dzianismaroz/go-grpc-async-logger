@@ -4,13 +4,13 @@ option go_package = ".;main";
 // option go_package = "./api";
 //option go_package = ".";
 
-// для генерации сервиса:
+// to generate the service:
 // protoc --go_out=. --go-grpc_out=. *.proto
-// а лучше воспользуйтесь командой make gen из прилагаемого мейкфайла
+// or better yet, use the make gen command from the attached makefile
 
-// у вас должен быть установлен protoc
-// полученный при генерации код (service.pb.go и service_grpc.pb.go) при загрузки в автогрейдер надо будет положить в service.go
-// на время локальной разработки можно ничего не делать
+// you must have protoc installed
+// the code obtained during generation (service.pb.go and service_grpc.pb.go) when loaded into the motor grader will need to be put in service.go
+// you can do nothing during local development
 
 package main;
 
@@ -18,7 +18,7 @@ message Event {
     int64  timestamp = 1;
     string consumer  = 2;
     string method    = 3;
-    string host      = 4; // читайте это поле как remote_addr
+    string host      = 4; // read this field as remote_addr
 }
 
 message Stat {

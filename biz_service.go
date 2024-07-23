@@ -2,31 +2,17 @@ package main
 
 import (
 	"context"
-	"coursera/hw7_microservice/acl"
-	"fmt"
 )
 
-type MyBizServer struct {
-	UnimplementedBizServer
-	acls *acl.ACLS
+// BizServer - is just a stub. No actual logic.
+func (s *MyMicroService) Check(ctx context.Context, in *Nothing) (*Nothing, error) {
+	return &Nothing{}, nil
 }
 
-func NewBizServer(acls *acl.ACLS) BizServer {
-	return &MyBizServer{acls: acls}
+func (s *MyMicroService) Add(ctx context.Context, in *Nothing) (*Nothing, error) {
+	return &Nothing{}, nil //dummy
 }
 
-// BizServer
-func (s *MyBizServer) Check(ctx context.Context, in *Nothing) (*Nothing, error) {
-
-	return nil, nil
-}
-
-func (s *MyBizServer) Add(ctx context.Context, in *Nothing) (*Nothing, error) {
-
-	return nil, nil
-}
-
-func (s *MyBizServer) Test(ctx context.Context, in *Nothing) (*Nothing, error) {
-	fmt.Println("WE ENTERED !!!! #####")
-	return nil, nil
+func (s *MyMicroService) Test(ctx context.Context, in *Nothing) (*Nothing, error) {
+	return &Nothing{}, nil // dummy
 }

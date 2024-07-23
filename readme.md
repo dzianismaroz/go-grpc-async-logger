@@ -1,34 +1,33 @@
-В этом задании вы научитесь строить микросервис на базе фреймворка grpc
+In this assignment you will learn how to build a microservice based on the grpc framework
 
-*В это задании нельзя использовать глобальные переменные, нужное вам храните в полях структуры, которая живёт в замыкании*
+*You cannot use global variables in this task; store what you need in the fields of the structure that lives in the closure*
 
-Вам потребуется реализовать:
+You will need to implement:
 
-* Сгенерировать необходимый код из proto-файла
-* Базу микросервиса в возможностью остановки сервера
-* ACL - контроль доступа от разных клиентов
-* Систему логирования вызываемых методов
-* Систему сбора сборки статистики ( просто счетчики ) по вызываемым методам
+* Generate the necessary code from the proto file
+* Microservice base with the ability to stop the server
+* ACL - access control from different clients
+* Logging system for called methods
+* A system for collecting statistics (just counters) for called methods
 
-Микросервис будет состоять из 2-х частей:
-* Какая-то бизнес-логика. В нашем примере она ничего не делает, её достаточно просто вызывать
-* Модуль администрирования, где находится логирование и статистика
+The microservice will consist of 2 parts:
+* Some kind of business logic. In our example, it doesn’t do anything, you just need to call it
+* Administration module, where logging and statistics are located
 
-С первым всё просто, там логики нету.
+With the first one everything is simple, there is no logic there.
 
-Со вторым интереснее. Как правило в настоящих микросервисах и логирование, и статистика работают в единственном экземпляре, у нас же они будут доступны по потоковому ( streaming ) интерфейсу тому, кто подключится к сервису. Это значит, что к сервису может подключиться 2 клиента логирования и оба будут получать поток логов. Так же к сервису может подключиться 2 ( и более ) модуля статистики с разными интервалами получения статистики ( например, каждые 2, 3 и 5 секунд ) и она будет асинхронно отправляться по каждому интерфейсу.
+The second one is more interesting. As a rule, in real microservices both logging and statistics work in a single copy, but in our case they will be available via a streaming interface to anyone who connects to the service. This means that 2 logging clients can connect to the service and both will receive a stream of logs. Also, 2 (or more) statistics modules can connect to the service with different intervals for receiving statistics (for example, every 2, 3 and 5 seconds) and it will be sent asynchronously over each interface.
 
-Раз уж был упомянут асинхрон - в задании будут горутины, таймеры, мютексы, контекст с таймаутами/завершением.
+Since asynchron was mentioned, the task will contain goroutines, timers, mutexes, and context with timeouts/completion.
 
-Особенности задания:
+Features of the task:
 
-Содержимое файлов service.pb.go и service_grpc.pb.go (которые получилось у вас при генерации proto-файла) вам необходимо поместить в service.go для загрузки 1 файлом
-В этом задании нельзя использовать глобальные переменные. Всё что нам необходимо - храните в полях структуры.
+You need to place the contents of the files service.pb.go and service_grpc.pb.go (which you obtained when generating the proto file) in service.go for uploading as 1 file
+You cannot use global variables in this job. Store everything we need in the fields of the structure.
 
-Запускать тесты с go test -v -race
+Run tests with go test -v -race
 
-Используемые версии:
+Versions used:
 * libprotoc 3.19.3
 * protoc-gen-go v1.27.1
 * protoc-gen-go-grpc 1.2.0
-

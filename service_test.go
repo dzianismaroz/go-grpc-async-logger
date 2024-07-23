@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"coursera/hw7_microservice/acl"
 	"fmt"
 	"io"
 	"log"
@@ -15,12 +14,11 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 )
 
 const (
-	// какой адрес-порт слушать серверу
+	// what address-port the server should listen to
 	listenAddr string = "127.0.0.1:8082"
 
 	// кого по каким методам пускать
@@ -35,16 +33,16 @@ const (
 }`
 )
 
-// чтобы не было сюрпризов когда где-то не успела преключиться горутина и не успело что-то стартовать
+// so that there are no surprises when somewhere a goroutine does not have time to switch and does not have time to sort something
 func wait(amout int) {
 	time.Sleep(time.Duration(amout) * 10 * time.Millisecond)
 }
 
-// утилитарная функция для коннекта к серверу
+// utilitarian function for connecting to the server
 func getGrpcConn(t *testing.T) *grpc.ClientConn {
-	grcpConn, err := grpc.NewClient(
+	grcpConn, err := grpc.Dial(
 		listenAddr,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithInsecure(),
 	)
 	if err != nil {
 		t.Fatalf("cant connect to grpc: %v", err)
@@ -52,7 +50,7 @@ func getGrpcConn(t *testing.T) *grpc.ClientConn {
 	return grcpConn
 }
 
-// получаем контекст с нужнымы метаданными для ACL
+// get the context with the necessary metadata for the ACL
 func getConsumerCtx(consumerName string) context.Context {
 	// ctx, _ := context.WithTimeout(context.Background(), time.Second)
 	ctx := context.Background()
@@ -62,7 +60,7 @@ func getConsumerCtx(consumerName string) context.Context {
 	return metadata.NewOutgoingContext(ctx, md)
 }
 
-// получаем контекст с нужнымы метаданными для ACL с возможностью отмены
+// get the context with the necessary metadata for the ACL with the ability to cancel
 func getConsumerCtxWithCancel(consumerName string) (context.Context, context.CancelFunc) {
 	ctx, cancelFn := context.WithCancel(context.Background())
 	md := metadata.Pairs(
@@ -71,32 +69,7 @@ func getConsumerCtxWithCancel(consumerName string) (context.Context, context.Can
 	return metadata.NewOutgoingContext(ctx, md), cancelFn
 }
 
-func TestBuildACLS(t *testing.T) {
-	acls, _ := acl.BuildACL(ACLData)
-	var (
-		authResult bool
-		err        error
-	)
-	// success authentication
-	authResult, err = acls.Authenticate("logger1", "/main.Admin/Logging")
-	if err != nil || !authResult {
-		t.Fatalf("failed authenticate")
-	}
-	// failed auth by not-allowed path
-	authResult, err = acls.Authenticate("logger1", "/main.User/Logging")
-	if err == nil && authResult {
-		t.Fatalf("failed authenticate")
-	}
-	// failed auth by unknown user [ sid ]
-	authResult, err = acls.Authenticate("necdmls-21", "/main.User/Logging")
-	fmt.Println("auth:", authResult, "err;", err)
-	if err == nil && authResult {
-		t.Fatalf("failed authenticate")
-	}
-
-}
-
-// старт-стоп сервера
+// server start-stop
 func TestServerStartStop(t *testing.T) {
 	ctx, finish := context.WithCancel(context.Background())
 	err := StartMyMicroservice(ctx, listenAddr, ACLData)
@@ -104,10 +77,10 @@ func TestServerStartStop(t *testing.T) {
 		t.Fatalf("cant start server initial: %v", err)
 	}
 	wait(1)
-	finish() // при вызове этой функции ваш сервер должен остановиться и освободить порт
+	finish() // when this function is called, your server should stop and release the port
 	wait(1)
 
-	// теперь проверим что вы освободили порт и мы можем стартовать сервер ещё раз
+	// now let's check that you have freed the port and we can start the server again
 	ctx, finish = context.WithCancel(context.Background())
 	err = StartMyMicroservice(ctx, listenAddr, ACLData)
 	if err != nil {
@@ -118,9 +91,9 @@ func TestServerStartStop(t *testing.T) {
 	wait(1)
 }
 
-// у вас наверняка будет что-то выполняться в отдельных горутинах
-// этим тестом мы проверяем что вы останавливаете все горутины которые у вас были и нет утечек
-// некоторый запас ( goroutinesPerTwoIterations*5 ) остаётся на случай рантайм горутин
+// you will probably have something running in separate goroutines
+// with this test we check that you stop all the goroutines you had and there are no leaks
+// some reserve ( goroutinesPerTwoIterations*5 ) remains in case of goroutine runtime
 func TestServerLeak(t *testing.T) {
 	//return
 	goroutinesStart := runtime.NumGoroutine()
@@ -139,16 +112,16 @@ func TestServerLeak(t *testing.T) {
 	}
 }
 
-// ACL (права на методы доступа) парсится корректно
+// ACL (access method rights) is parsed correctly
 func TestACLParseError(t *testing.T) {
-	// finish'а тут нет потому что стартовать у вас ничего не должно если не получилось распаковать ACL
+	// there is no finish here because nothing should start for you if you failed to unpack the ACL
 	err := StartMyMicroservice(context.Background(), listenAddr, "{.;")
 	if err == nil {
 		t.Fatalf("expacted error on bad acl json, have nil")
 	}
 }
 
-// ACL (права на методы доступа) работает корректно
+// ACL (access method rights) works correctly
 func TestACL(t *testing.T) {
 	wait(1)
 	ctx, finish := context.WithCancel(context.Background())
@@ -169,9 +142,9 @@ func TestACL(t *testing.T) {
 	adm := NewAdminClient(conn)
 
 	for idx, ctx := range []context.Context{
-		context.Background(),       // нет поля для ACL
-		getConsumerCtx("unknown"),  // поле есть, неизвестный консюмер
-		getConsumerCtx("biz_user"), // поле есть, нет доступа
+		context.Background(),       // no field for ACL
+		getConsumerCtx("unknown"),  // field exists, unknown consumer
+		getConsumerCtx("biz_user"), // field available, no access
 	} {
 		_, err = biz.Test(ctx, &Nothing{})
 		if err == nil {
@@ -195,7 +168,7 @@ func TestACL(t *testing.T) {
 		t.Fatalf("ACL fail: unexpected error: %v", err)
 	}
 
-	// ACL на методах, которые возвращают поток данных
+	// ACL on methods that return a data stream
 	logger, err := adm.Logging(getConsumerCtx("unknown"), &Nothing{})
 	_, err = logger.Recv()
 	if err == nil {
@@ -254,14 +227,14 @@ func TestLogging(t *testing.T) {
 				t.Errorf("unexpected error: %v, awaiting event", err)
 				return
 			}
-			// evt.Host читайте как evt.RemoteAddr
+			// evt.Host read as evt.RemoteAddr
 			if !strings.HasPrefix(evt.GetHost(), "127.0.0.1:") || evt.GetHost() == listenAddr {
 				t.Errorf("bad host: %v", evt.GetHost())
 				return
 			}
-			// это грязный хак
-			// protobuf добавляет к структуре свои поля, которвые не видны при приведении к строке и при reflect.DeepEqual
-			// поэтому берем не оригинал сообщения, а только нужные значения
+			// this is a dirty hack
+			// protobuf adds its own fields to the structure, which are not visible when cast to a string and when reflect.DeepEqual
+			// therefore we do not take the original message, but only the necessary values
 			logData1 = append(logData1, &Event{Consumer: evt.Consumer, Method: evt.Method})
 		}
 	}()
@@ -278,9 +251,9 @@ func TestLogging(t *testing.T) {
 				t.Errorf("bad host: %v", evt.GetHost())
 				return
 			}
-			// это грязный хак
-			// protobuf добавляет к структуре свои поля, которвые не видны при приведении к строке и при reflect.DeepEqual
-			// поэтому берем не оригинал сообщения, а только нужные значения
+			// this is a dirty hack
+			// protobuf adds its own fields to the structure, which are not visible when cast to a string and when reflect.DeepEqual
+			// therefore we do not take the original message, but only the necessary values
 			logData2 = append(logData2, &Event{Consumer: evt.Consumer, Method: evt.Method})
 		}
 	}()
@@ -355,9 +328,9 @@ func TestStat(t *testing.T) {
 			}
 			// log.Println("stat1", stat, err)
 			mu.Lock()
-			// это грязный хак
-			// protobuf добавляет к структуре свои поля, которвые не видны при приведении к строке и при reflect.DeepEqual
-			// поэтому берем не оригинал сообщения, а только нужные значения
+			// this is a dirty hack
+			// protobuf adds its own fields to the structure, which are not visible when cast to a string and when reflect.DeepEqual
+			// therefore we do not take the original message, but only the necessary values
 			stat1 = &Stat{
 				ByMethod:   stat.ByMethod,
 				ByConsumer: stat.ByConsumer,
@@ -376,9 +349,9 @@ func TestStat(t *testing.T) {
 			}
 			// log.Println("stat2", stat, err)
 			mu.Lock()
-			// это грязный хак
-			// protobuf добавляет к структуре свои поля, которвые не видны при приведении к строке и при reflect.DeepEqual
-			// поэтому берем не оригинал сообщения, а только нужные значения
+			// this is a dirty hack
+			// protobuf adds its own fields to the structure, which are not visible when cast to a string and when reflect.DeepEqual
+			// therefore we do not take the original message, but only the necessary values
 			stat2 = &Stat{
 				ByMethod:   stat.ByMethod,
 				ByConsumer: stat.ByConsumer,
@@ -505,14 +478,14 @@ func TestWorkAfterDisconnect(t *testing.T) {
 				t.Errorf("unexpected error: %v, awaiting event", err)
 				return
 			}
-			// evt.Host читайте как evt.RemoteAddr
+			// evt.Host read as evt.RemoteAddr
 			if !strings.HasPrefix(evt.GetHost(), "127.0.0.1:") || evt.GetHost() == listenAddr {
 				t.Errorf("bad host: %v", evt.GetHost())
 				return
 			}
-			// это грязный хак
-			// protobuf добавляет к структуре свои поля, которвые не видны при приведении к строке и при reflect.DeepEqual
-			// поэтому берем не оригинал сообщения, а только нужные значения
+			// this is a dirty hack
+			// protobuf adds its own fields to the structure, which are not visible when cast to a string and when reflect.DeepEqual
+			// therefore we do not take the original message, but only the necessary values
 			logData1 = append(logData1, &Event{Consumer: evt.Consumer, Method: evt.Method})
 		}
 	}()
@@ -525,14 +498,14 @@ func TestWorkAfterDisconnect(t *testing.T) {
 				t.Errorf("unexpected error: %v, awaiting event", err)
 				return
 			}
-			// evt.Host читайте как evt.RemoteAddr
+			// evt.Host read as evt.RemoteAddr
 			if !strings.HasPrefix(evt.GetHost(), "127.0.0.1:") || evt.GetHost() == listenAddr {
 				t.Errorf("bad host: %v", evt.GetHost())
 				return
 			}
-			// это грязный хак
-			// protobuf добавляет к структуре свои поля, которвые не видны при приведении к строке и при reflect.DeepEqual
-			// поэтому берем не оригинал сообщения, а только нужные значения
+			// this is a dirty hack
+			// protobuf adds its own fields to the structure, which are not visible when cast to a string and when reflect.DeepEqual
+			// therefore we do not take the original message, but only the necessary values
 			logData2 = append(logData2, &Event{Consumer: evt.Consumer, Method: evt.Method})
 		}
 	}()

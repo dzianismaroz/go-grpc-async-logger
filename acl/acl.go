@@ -2,8 +2,11 @@ package acl
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
+	"path"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // To build ACL list and provide authentication by SID anf requested path.
@@ -20,16 +23,20 @@ type (
 
 // Authenticate certain @sid (user) by @path requested.
 // We only read ACL permissions from different goroutines ( so it's safe concurrent).
-func (a *ACLS) Authenticate(sid string, path string) (bool, error) {
-	objsId, ok := a.content[sid]
+func (a *ACLS) Authenticate(sid []string, path_ string) error {
+	if len(sid) == 0 {
+		return status.Error(codes.Unauthenticated, "empty sid")
+	}
+	objsId, ok := a.content[sid[0]]
 	if !ok {
-		return false, errors.New("not permitted")
+		return status.Error(codes.Unauthenticated, "not found")
 	}
-	_, allowed := objsId[path]
-	if !allowed {
-		return false, nil
+	if _, allowed := objsId[path_]; !allowed {
+		if _, allowed := objsId[path.Dir(path_)+"/*"]; !allowed { // try wildcard
+			return status.Error(codes.Unauthenticated, "permission denied")
+		}
 	}
-	return true, nil
+	return nil
 }
 
 // Build map of maps for faster resolving ACL perm.

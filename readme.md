@@ -1,3 +1,26 @@
+#### Solution result:
+```
+*  Executing task: make -f Makefile test 
+
+go test -v -race
+=== RUN   TestServerStartStop
+--- PASS: TestServerStartStop (0.12s)
+=== RUN   TestServerLeak
+--- PASS: TestServerLeak (3.32s)
+=== RUN   TestACLParseError
+--- PASS: TestACLParseError (0.00s)
+=== RUN   TestACL
+--- PASS: TestACL (0.08s)
+=== RUN   TestLogging
+--- PASS: TestLogging (0.23s)
+=== RUN   TestStat
+--- PASS: TestStat (4.45s)
+=== RUN   TestWorkAfterDisconnect
+--- PASS: TestWorkAfterDisconnect (0.55s)
+PASS
+ok      coursera/hw7_microservice       9.760s
+```
+
 In this assignment you will learn how to build a microservice based on the grpc framework
 
 *You cannot use global variables in this task; store what you need in the fields of the structure that lives in the closure*

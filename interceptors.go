@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -40,7 +39,6 @@ func (s *MyMicroService) unaryInterceptor(
 	md, _ := metadata.FromIncomingContext(ctx)
 	principal := md.Get(consumer)
 	acls := s.acl
-	fmt.Printf("###MD: %#v\n", md)
 	if authErr := acls.Authenticate(principal, info.FullMethod); authErr != nil {
 		return nil, authErr
 	}

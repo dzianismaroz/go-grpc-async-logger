@@ -116,6 +116,17 @@ func (s *MyMicroService) startGRPC() error {
 			select {
 			case ch := <-s.addStatListenerCh:
 				s.statListeners = append(s.statListeners, ch)
+			case ch := <-s.removeStatListenerCh:
+				if len(s.statListeners) > 0 {
+					temp := make([]chan *Stat, 0, len(s.statListeners)-1)
+					for _, cc := range s.statListeners {
+						if cc == ch {
+							continue
+						}
+						temp = append(temp, cc)
+					}
+					s.statListeners = temp
+				}
 			case stat := <-s.broadcastStatCh:
 				for _, ch := range s.statListeners {
 					ch <- stat

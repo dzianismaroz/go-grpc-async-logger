@@ -14,6 +14,7 @@ func cleanStat() *Stat {
 // --- implementation of Admin Service ---------
 func (s *MyMicroService) Logging(none *Nothing, stream Admin_LoggingServer) error {
 	logCh := make(chan *Event)
+	defer close(logCh)
 	s.addLogListenerCh <- logCh
 	for {
 		select {
@@ -29,6 +30,7 @@ func (s *MyMicroService) Logging(none *Nothing, stream Admin_LoggingServer) erro
 
 func (s *MyMicroService) Statistics(interval *StatInterval, stream Admin_StatisticsServer) error {
 	statCh := make(chan *Stat)
+	defer close(statCh)
 	s.addStatListenerCh <- statCh
 	ticker := time.NewTicker(time.Duration(interval.IntervalSeconds) * time.Second)
 	response := cleanStat()
